@@ -5,7 +5,6 @@ let pedidosAdminCache = [];
 let opcoesAdminCache = [];
 let membrosAdminCache = [];
 
-
 async function carregarAdmin() {
     await requireLogin();
 
@@ -63,7 +62,11 @@ async function carregarAlunos() {
                 <td>${aluno.call_number}</td>
                 <td>${aluno.first_name} ${aluno.last_name}</td>
                 <td>${aluno.email}</td>
-                <td><span class="badge ${aluno.status === "aprovado" ? "green" : "yellow"}">${aluno.status}</span></td>
+                <td>
+                    <span class="badge ${aluno.status === "aprovado" ? "green" : "yellow"}">
+                        ${aluno.status}
+                    </span>
+                </td>
                 <td>${aluno.is_admin ? "Sim" : "Não"}</td>
                 <td>
                     <button class="success" onclick="alterarStatusAluno('${aluno.id}', 'aprovado')">Aprovar</button>
@@ -74,7 +77,10 @@ async function carregarAlunos() {
         `;
     });
 
-    html += "</tbody></table>";
+    html += `
+            </tbody>
+        </table>
+    `;
 
     div.innerHTML = html;
 }
@@ -131,9 +137,7 @@ async function criarOpcoesGrupo() {
     const smallerMaxMembers = maxMembers - 1;
 
     const rows = letters.map((letter, index) => {
-        const groupMaxMembers = index < fullCapacityCount
-            ? maxMembers
-            : smallerMaxMembers;
+        const groupMaxMembers = index < fullCapacityCount ? maxMembers : smallerMaxMembers;
 
         return {
             class_code: classCode,
@@ -172,6 +176,7 @@ async function criarOpcoesGrupo() {
     document.getElementById("full_capacity_count").value = "2";
 
     await carregarOpcoes();
+    await carregarGruposAdmin();
 }
 
 async function carregarOpcoes() {
@@ -214,7 +219,11 @@ async function carregarOpcoes() {
                 <td>${op.theme}</td>
                 <td>${op.group_letter}</td>
                 <td>${op.max_members}</td>
-                <td>${op.active ? "Sim" : "Não"}</td>
+                <td>
+                    <span class="badge ${op.active ? "green" : "red"}">
+                        ${op.active ? "Sim" : "Não"}
+                    </span>
+                </td>
                 <td>
                     <button class="secondary" onclick="alternarOpcao('${op.id}', ${!op.active})">
                         ${op.active ? "Desativar" : "Ativar"}
@@ -224,7 +233,10 @@ async function carregarOpcoes() {
         `;
     });
 
-    html += "</tbody></table>";
+    html += `
+            </tbody>
+        </table>
+    `;
 
     div.innerHTML = html;
 }
@@ -241,6 +253,7 @@ async function alternarOpcao(id, active) {
     }
 
     await carregarOpcoes();
+    await carregarGruposAdmin();
 }
 
 async function carregarHistorico() {
@@ -281,13 +294,16 @@ async function carregarHistorico() {
         `;
     });
 
-    html += "</tbody></table>";
+    html += `
+            </tbody>
+        </table>
+    `;
 
     div.innerHTML = html;
 }
 
 async function carregarPerfisAdmin() {
-    const { dataabaseClient
+    const { data, error } = await supabaseClient
         .from("profiles")
         .select("id, first_name, last_name, call_number, class_code, email, status, is_admin")
         .order("class_code")
@@ -329,7 +345,8 @@ function aplicarFiltroTurmaAdmin() {
     renderizarPedidosAdmin();
 }
 
-async function carregarGruposAdmin() { = document.getElementById("lista-grupos-admin");
+async function carregarGruposAdmin() {
+    const div = document.getElementById("lista-grupos-admin");
 
     const [opcoesResp, gruposResp, membrosResp] = await Promise.all([
         supabaseClient
@@ -385,9 +402,8 @@ async function carregarGruposAdmin() { = document.getElementById("lista-grupos-a
     renderizarGruposAdmin();
 }
 
-
 function renderizarGruposAdmin() {
-
+    const div = document.getElementById("lista-grupos-admin");
     const filtroTurma = document.getElementById("filtro-turma-admin")?.value || "";
 
     let opcoesFiltradas = opcoesAdminCache;
@@ -396,7 +412,26 @@ function renderizarGruposAdmin() {
         opcoesFiltradas = opcoesAdminCache.filter(opcao => opcao.class_code === filtroTurma);
     }
 
-    if (!opcoesFiltradas || opcoesFiltradas.length === 0) {
+    // fallback: se não houver opções, mas houver grupos reais antigos, mostra mesmo assim
+    const gruposOrfaos = gruposAdminCache.filter(grupo => {
+        const temOpcaoCorrespondente = opcoesAdminCache.some(opcao =>
+            grupo.option_id === opcao.id ||
+            (
+                grupo.class_code === opcao.class_code &&
+                grupo.subject === opcao.subject &&
+                grupo.theme === opcao.theme &&
+                grupo.group_letter === opcao.group_letter
+            )
+        );
+
+        if (filtroTurma && grupo.class_code !== filtroTurma) {
+            return false;
+        }
+
+        return !temOpcaoCorrespondente;
+    });
+
+    if ((!opcoesFiltradas || opcoesFiltradas.length === 0) && gruposOrfaos.length === 0) {
         div.innerHTML = `<p>Nenhuma configuração de grupo encontrada para o filtro selecionado.</p>`;
         return;
     }
@@ -421,7 +456,15 @@ function renderizarGruposAdmin() {
     `;
 
     opcoesFiltradas.forEach(opcao => {
-        const grupoReal = gruposAdminCache.find(g => g.option_id === opcao.id) || null;
+        const grupoReal = gruposAdminCache.find(g =>
+            g.option_id === opcao.id ||
+            (
+                g.class_code === opcao.class_code &&
+                g.subject === opcao.subject &&
+                g.theme === opcao.theme &&
+                g.group_letter === opcao.group_letter
+            )
+        ) || null;
 
         const qtdMembros = grupoReal
             ? membrosAdminCache.filter(m => m.group_id === grupoReal.id && m.active).length
@@ -459,6 +502,36 @@ function renderizarGruposAdmin() {
                 <td>${qtdMembros}/${opcao.max_members}</td>
                 <td>${criadoEm}</td>
                 <td>${acoes}</td>
+            </tr>
+        `;
+    });
+
+    // mostra também grupos reais sem opção correspondente
+    gruposOrfaos.forEach(grupo => {
+        const qtdMembros = membrosAdminCache.filter(m => m.group_id === grupo.id && m.active).length;
+
+        html += `
+            <tr>
+                <td>${grupo.class_code}</td>
+                <td>${grupo.subject}</td>
+                <td>${grupo.theme}</td>
+                <td>${grupo.group_letter}</td>
+                <td>${grupo.max_members}</td>
+                <td><span class="badge red">Sem configuração</span></td>
+                <td>
+                    <span class="badge ${grupo.active ? "green" : "red"}">
+                        ${grupo.active ? "Criado" : "Inativo"}
+                    </span>
+                </td>
+                <td>${qtdMembros}/${grupo.max_members}</td>
+                <td>${new Date(grupo.created_at).toLocaleString("pt-BR")}</td>
+                <td>
+                    ${
+                        grupo.active
+                            ? `<button class="danger" onclick="desativarGrupoAdmin('${grupo.id}', '${escapeHtml(grupo.name)}')">Excluir/desativar</button>`
+                            : `<span class="small">Grupo inativo</span>`
+                    }
+                </td>
             </tr>
         `;
     });
@@ -568,7 +641,6 @@ function renderizarPedidosAdmin() {
 
     div.innerHTML = html;
 }
-
 
 async function desativarGrupoAdmin(groupId, groupName) {
     const motivo = prompt(
