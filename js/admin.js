@@ -2,6 +2,8 @@ let adminProfile = null;
 let perfisAdminCache = [];
 let gruposAdminCache = [];
 let pedidosAdminCache = [];
+let opcoesAdminCache = [];
+let membrosAdminCache = [];
 
 
 async function carregarAdmin() {
@@ -327,39 +329,75 @@ function aplicarFiltroTurmaAdmin() {
     renderizarPedidosAdmin();
 }
 
-async function carregarGruposAdmin() {
-    const div = document.getElementById("lista-grupos-admin");
+async function carregarGruposAdmin() { = document.getElementById("lista-grupos-admin");
 
-    const { data, error } = await supabaseClient
-        .from("groups")
-        .select("*")
-        .order("class_code")
-        .order("subject")
-        .order("theme")
-        .order("group_letter");
+    const [opcoesResp, gruposResp, membrosResp] = await Promise.all([
+        supabaseClient
+            .from("group_options")
+            .select("*")
+            .order("class_code")
+            .order("subject")
+            .order("theme")
+            .order("group_letter"),
 
-    if (error) {
-        div.innerHTML = `<p class="error">${error.message}</p>`;
+        supabaseClient
+            .from("groups")
+            .select("*")
+            .order("class_code")
+            .order("subject")
+            .order("theme")
+            .order("group_letter"),
+
+        supabaseClient
+            .from("group_members")
+            .select("*")
+            .eq("active", true)
+    ]);
+
+    if (opcoesResp.error) {
+        div.innerHTML = `<p class="error">${opcoesResp.error.message}</p>`;
+        opcoesAdminCache = [];
         gruposAdminCache = [];
+        membrosAdminCache = [];
         return;
     }
 
-    gruposAdminCache = data || [];
+    if (gruposResp.error) {
+        div.innerHTML = `<p class="error">${gruposResp.error.message}</p>`;
+        opcoesAdminCache = [];
+        gruposAdminCache = [];
+        membrosAdminCache = [];
+        return;
+    }
+
+    if (membrosResp.error) {
+        div.innerHTML = `<p class="error">${membrosResp.error.message}</p>`;
+        opcoesAdminCache = [];
+        gruposAdminCache = [];
+        membrosAdminCache = [];
+        return;
+    }
+
+    opcoesAdminCache = opcoesResp.data || [];
+    gruposAdminCache = gruposResp.data || [];
+    membrosAdminCache = membrosResp.data || [];
+
     renderizarGruposAdmin();
 }
 
+
 function renderizarGruposAdmin() {
-    const div = document.getElementById("lista-grupos-admin");
+
     const filtroTurma = document.getElementById("filtro-turma-admin")?.value || "";
 
-    let gruposFiltrados = gruposAdminCache;
+    let opcoesFiltradas = opcoesAdminCache;
 
     if (filtroTurma) {
-        gruposFiltrados = gruposAdminCache.filter(grupo => grupo.class_code === filtroTurma);
+        opcoesFiltradas = opcoesAdminCache.filter(opcao => opcao.class_code === filtroTurma);
     }
 
-    if (!gruposFiltrados || gruposFiltrados.length === 0) {
-        div.innerHTML = `<p>Nenhum grupo encontrado para o filtro selecionado.</p>`;
+    if (!opcoesFiltradas || opcoesFiltradas.length === 0) {
+        div.innerHTML = `<p>Nenhuma configuração de grupo encontrada para o filtro selecionado.</p>`;
         return;
     }
 
@@ -368,12 +406,13 @@ function renderizarGruposAdmin() {
             <thead>
                 <tr>
                     <th>Turma</th>
-                    <th>Grupo</th>
                     <th>Disciplina</th>
                     <th>Tema</th>
                     <th>Letra</th>
                     <th>Máx.</th>
-                    <th>Ativo</th>
+                    <th>Configuração ativa</th>
+                    <th>Grupo real</th>
+                    <th>Membros</th>
                     <th>Criado em</th>
                     <th>Ações</th>
                 </tr>
@@ -381,28 +420,45 @@ function renderizarGruposAdmin() {
             <tbody>
     `;
 
-    gruposFiltrados.forEach(grupo => {
+    opcoesFiltradas.forEach(opcao => {
+        const grupoReal = gruposAdminCache.find(g => g.option_id === opcao.id) || null;
+
+        const qtdMembros = grupoReal
+            ? membrosAdminCache.filter(m => m.group_id === grupoReal.id && m.active).length
+            : 0;
+
+        const statusGrupo = !grupoReal
+            ? `<span class="badge yellow">Ainda não criado</span>`
+            : grupoReal.active
+                ? `<span class="badge green">Criado</span>`
+                : `<span class="badge red">Inativo</span>`;
+
+        const criadoEm = grupoReal
+            ? new Date(grupoReal.created_at).toLocaleString("pt-BR")
+            : "-";
+
+        const acoes = !grupoReal
+            ? `<span class="small">Sem grupo criado</span>`
+            : grupoReal.active
+                ? `<button class="danger" onclick="desativarGrupoAdmin('${grupoReal.id}', '${escapeHtml(grupoReal.name)}')">Excluir/desativar</button>`
+                : `<span class="small">Grupo inativo</span>`;
+
         html += `
             <tr>
-                <td>${grupo.class_code}</td>
-                <td>${grupo.name}</td>
-                <td>${grupo.subject}</td>
-                <td>${grupo.theme}</td>
-                <td>${grupo.group_letter}</td>
-                <td>${grupo.max_members}</td>
+                <td>${opcao.class_code}</td>
+                <td>${opcao.subject}</td>
+                <td>${opcao.theme}</td>
+                <td>${opcao.group_letter}</td>
+                <td>${opcao.max_members}</td>
                 <td>
-                    <span class="badge ${grupo.active ? "green" : "red"}">
-                        ${grupo.active ? "Sim" : "Não"}
+                    <span class="badge ${opcao.active ? "green" : "red"}">
+                        ${opcao.active ? "Sim" : "Não"}
                     </span>
                 </td>
-                <td>${new Date(grupo.created_at).toLocaleString("pt-BR")}</td>
-                <td>
-                    ${
-                        grupo.active
-                            ? `<button class="danger" onclick="desativarGrupoAdmin('${grupo.id}', '${escapeHtml(grupo.name)}')">Excluir/desativar</button>`
-                            : `<span class="small">Grupo inativo</span>`
-                    }
-                </td>
+                <td>${statusGrupo}</td>
+                <td>${qtdMembros}/${opcao.max_members}</td>
+                <td>${criadoEm}</td>
+                <td>${acoes}</td>
             </tr>
         `;
     });
