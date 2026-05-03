@@ -1,4 +1,8 @@
 let adminProfile = null;
+let perfisAdminCache = [];
+let gruposAdminCache = [];
+let pedidosAdminCache = [];
+
 
 async function carregarAdmin() {
     await requireLogin();
@@ -12,6 +16,8 @@ async function carregarAdmin() {
     }
 
     await carregarAlunos();
+    await carregarPerfisAdmin();
+    popularFiltroTurmasAdmin();
     await carregarOpcoes();
     await carregarGruposAdmin();
     await carregarPedidosAdmin();
@@ -278,6 +284,49 @@ async function carregarHistorico() {
     div.innerHTML = html;
 }
 
+async function carregarPerfisAdmin() {
+    const { dataabaseClient
+        .from("profiles")
+        .select("id, first_name, last_name, call_number, class_code, email, status, is_admin")
+        .order("class_code")
+        .order("call_number");
+
+    if (error) {
+        console.error("Erro ao carregar perfis para admin:", error.message);
+        perfisAdminCache = [];
+        return;
+    }
+
+    perfisAdminCache = data || [];
+}
+
+function popularFiltroTurmasAdmin() {
+    const select = document.getElementById("filtro-turma-admin");
+    if (!select) return;
+
+    const valorAtual = select.value || "";
+
+    const turmas = [...new Set(
+        perfisAdminCache
+            .map(p => (p.class_code || "").trim())
+            .filter(Boolean)
+    )].sort();
+
+    let html = `<option value="">Todas as turmas</option>`;
+
+    turmas.forEach(turma => {
+        html += `<option value="${turma}">${turma}</option>`;
+    });
+
+    select.innerHTML = html;
+    select.value = valorAtual;
+}
+
+function aplicarFiltroTurmaAdmin() {
+    renderizarGruposAdmin();
+    renderizarPedidosAdmin();
+}
+
 async function carregarGruposAdmin() {
     const div = document.getElementById("lista-grupos-admin");
 
@@ -291,11 +340,26 @@ async function carregarGruposAdmin() {
 
     if (error) {
         div.innerHTML = `<p class="error">${error.message}</p>`;
+        gruposAdminCache = [];
         return;
     }
 
-    if (!data || data.length === 0) {
-        div.innerHTML = `<p>Nenhum grupo criado ainda.</p>`;
+    gruposAdminCache = data || [];
+    renderizarGruposAdmin();
+}
+
+function renderizarGruposAdmin() {
+    const div = document.getElementById("lista-grupos-admin");
+    const filtroTurma = document.getElementById("filtro-turma-admin")?.value || "";
+
+    let gruposFiltrados = gruposAdminCache;
+
+    if (filtroTurma) {
+        gruposFiltrados = gruposAdminCache.filter(grupo => grupo.class_code === filtroTurma);
+    }
+
+    if (!gruposFiltrados || gruposFiltrados.length === 0) {
+        div.innerHTML = `<p>Nenhum grupo encontrado para o filtro selecionado.</p>`;
         return;
     }
 
@@ -305,6 +369,9 @@ async function carregarGruposAdmin() {
                 <tr>
                     <th>Turma</th>
                     <th>Grupo</th>
+                    <th>Disciplina</th>
+                    <th>Tema</th>
+                    <th>Letra</th>
                     <th>Máx.</th>
                     <th>Ativo</th>
                     <th>Criado em</th>
@@ -314,11 +381,14 @@ async function carregarGruposAdmin() {
             <tbody>
     `;
 
-    data.forEach(grupo => {
+    gruposFiltrados.forEach(grupo => {
         html += `
             <tr>
                 <td>${grupo.class_code}</td>
                 <td>${grupo.name}</td>
+                <td>${grupo.subject}</td>
+                <td>${grupo.theme}</td>
+                <td>${grupo.group_letter}</td>
                 <td>${grupo.max_members}</td>
                 <td>
                     <span class="badge ${grupo.active ? "green" : "red"}">
@@ -350,38 +420,45 @@ async function carregarPedidosAdmin() {
 
     const { data, error } = await supabaseClient
         .from("join_requests")
-        .select(`
-            id,
-            group_id,
-            requester_id,
-            status,
-            created_at,
-            groups (
-                name,
-                class_code,
-                subject,
-                theme,
-                group_letter,
-                max_members
-            ),
-            profiles (
-                first_name,
-                last_name,
-                call_number,
-                class_code,
-                email
-            )
-        `)
+        .select("*")
         .eq("status", "pendente")
         .order("created_at", { ascending: true });
 
     if (error) {
         div.innerHTML = `<p class="error">${error.message}</p>`;
+        pedidosAdminCache = [];
         return;
     }
 
-    if (!data || data.length === 0) {
-        div.innerHTML = `<p>Nenhum pedido de entrada pendente.</p>`;
+    pedidosAdminCache = data || [];
+    renderizarPedidosAdmin();
+}
+
+function renderizarPedidosAdmin() {
+    const div = document.getElementById("lista-pedidos-admin");
+    const filtroTurma = document.getElementById("filtro-turma-admin")?.value || "";
+
+    let pedidosFiltrados = pedidosAdminCache.map(pedido => {
+        const grupo = gruposAdminCache.find(g => g.id === pedido.group_id) || null;
+        const aluno = perfisAdminCache.find(p => p.id === pedido.requester_id) || null;
+
+        return {
+            ...pedido,
+            grupo,
+            aluno
+        };
+    });
+
+    if (filtroTurma) {
+        pedidosFiltrados = pedidosFiltrados.filter(item => {
+            const turmaDoGrupo = item.grupo?.class_code || "";
+            const turmaDoAluno = item.aluno?.class_code || "";
+            return turmaDoGrupo === filtroTurma || turmaDoAluno === filtroTurma;
+        });
+    }
+
+    if (!pedidosFiltrados || pedidosFiltrados.length === 0) {
+        div.innerHTML = `<p>Nenhum pedido de entrada pendente para o filtro selecionado.</p>`;
         return;
     }
 
@@ -399,9 +476,9 @@ async function carregarPedidosAdmin() {
             <tbody>
     `;
 
-    data.forEach(pedido => {
-        const aluno = pedido.profiles;
-        const grupo = pedido.groups;
+    pedidosFiltrados.forEach(item => {
+        const aluno = item.aluno;
+        const grupo = item.grupo;
 
         const nomeAluno = aluno
             ? `${aluno.call_number} - ${aluno.first_name} ${aluno.last_name}`
@@ -411,18 +488,16 @@ async function carregarPedidosAdmin() {
             ? grupo.name
             : "Grupo não encontrado";
 
-        const turma = aluno
-            ? aluno.class_code
-            : "";
+        const turma = aluno?.class_code || grupo?.class_code || "";
 
         html += `
             <tr>
-                <td>${new Date(pedido.created_at).toLocaleString("pt-BR")}</td>
+                <td>${new Date(item.created_at).toLocaleString("pt-BR")}</td>
                 <td>${nomeAluno}</td>
                 <td>${turma}</td>
                 <td>${nomeGrupo}</td>
                 <td>
-                    <button class="success" onclick="aprovarPedidoEntradaAdmin('${pedido.id}', '${escapeHtml(nomeAluno)}', '${escapeHtml(nomeGrupo)}')">
+                    <button class="success" onclick="aprovarPedidoEntradaAdmin('${item.id}', '${escapeHtml(nomeAluno)}', '${escapeHtml(nomeGrupo)}')">
                         Aceitar pelo admin
                     </button>
                 </td>
@@ -437,6 +512,7 @@ async function carregarPedidosAdmin() {
 
     div.innerHTML = html;
 }
+
 
 async function desativarGrupoAdmin(groupId, groupName) {
     const motivo = prompt(
@@ -507,6 +583,120 @@ async function aprovarPedidoEntradaAdmin(requestId, nomeAluno, nomeGrupo) {
     await carregarGruposAdmin();
     await carregarPedidosAdmin();
     await carregarHistorico();
+}
+
+async function baixarPlanilhaGrupos() {
+    const [membrosResp, gruposResp, perfisResp] = await Promise.all([
+        supabaseClient
+            .from("group_members")
+            .select("group_id, user_id, active")
+            .eq("active", true),
+
+        supabaseClient
+            .from("groups")
+            .select("id, class_code, subject, theme, group_letter, name, active"),
+
+        supabaseClient
+            .from("profiles")
+            .select("id, first_name, last_name, call_number, class_code, status")
+    ]);
+
+    if (membrosResp.error) {
+        alert("Erro ao carregar membros: " + membrosResp.error.message);
+        return;
+    }
+
+    if (gruposResp.error) {
+        alert("Erro ao carregar grupos: " + gruposResp.error.message);
+        return;
+    }
+
+    if (perfisResp.error) {
+        alert("Erro ao carregar perfis: " + perfisResp.error.message);
+        return;
+    }
+
+    const membros = membrosResp.data || [];
+    const grupos = gruposResp.data || [];
+    const perfis = perfisResp.data || [];
+
+    const linhas = membros
+        .map(membro => {
+            const grupo = grupos.find(g => g.id === membro.group_id && g.active);
+            const perfil = perfis.find(p => p.id === membro.user_id);
+
+            if (!grupo || !perfil) {
+                return null;
+            }
+
+            return {
+                turma: grupo.class_code || perfil.class_code || "",
+                numero: perfil.call_number ?? "",
+                nome: perfil.first_name || "",
+                sobrenome: perfil.last_name || "",
+                disciplina: grupo.subject || "",
+                tema: grupo.theme || "",
+                grupo: grupo.group_letter || ""
+            };
+        })
+        .filter(Boolean)
+        .sort((a, b) => {
+            if (a.turma !== b.turma) return a.turma.localeCompare(b.turma);
+            if ((a.numero ?? 0) !== (b.numero ?? 0)) return (a.numero ?? 0) - (b.numero ?? 0);
+            if (a.disciplina !== b.disciplina) return a.disciplina.localeCompare(b.disciplina);
+            if (a.tema !== b.tema) return a.tema.localeCompare(b.tema);
+            return a.grupo.localeCompare(b.grupo);
+        });
+
+    if (linhas.length === 0) {
+        alert("Nenhum dado encontrado para exportar.");
+        return;
+    }
+
+    const cabecalho = [
+        "Turma",
+        "Numero",
+        "Nome",
+        "Sobrenome",
+        "Disciplina",
+        "Tema",
+        "Grupo"
+    ];
+
+    const csv = [
+        cabecalho.join(";"),
+        ...linhas.map(linha => [
+            escaparCsv(linha.turma),
+            escaparCsv(linha.numero),
+            escaparCsv(linha.nome),
+            escaparCsv(linha.sobrenome),
+            escaparCsv(linha.disciplina),
+            escaparCsv(linha.tema),
+            escaparCsv(linha.grupo)
+        ].join(";"))
+    ].join("\r\n");
+
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+
+    const hoje = new Date();
+    const yyyy = hoje.getFullYear();
+    const mm = String(hoje.getMonth() + 1).padStart(2, "0");
+    const dd = String(hoje.getDate()).padStart(2, "0");
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `grupos_todas_as_turmas_${yyyy}-${mm}-${dd}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+
+    URL.revokeObjectURL(url);
+}
+
+function escaparCsv(valor) {
+    const texto = String(valor ?? "");
+    return `"${texto.replaceAll('"', '""')}"`;
 }
 
 function escapeHtml(text) {

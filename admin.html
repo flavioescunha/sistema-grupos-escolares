@@ -66,6 +66,20 @@
         </div>
 
         <div class="card">
+            <h2>Filtro por turma</h2>
+            <label for="filtro-turma-admin">Turma</label>
+            <select id="filtro-turma-admin" onchange="aplicarFiltroTurmaAdmin()">
+                <option value="">Todas as turmas</option>
+            </select>
+
+            <button class="secondary" onclick="baixarPlanilhaGrupos()">Baixar planilha de todas as turmas</button>
+
+            <p class="small">
+                A planilha será baixada em CSV e pode ser aberta no Excel.
+            </p>
+        </div>
+
+        <div class="card">
             <h2>Grupos criados</h2>
             <p class="small">
                 Aqui o administrador pode desativar um grupo. O grupo deixa de aparecer para os alunos,
