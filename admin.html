@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin - Sistema de Grupos</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body onload="carregarAdmin()">
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>Painel do administrador</h1>
+                <p class="small">Aprovar alunos, configurar opções de grupo e consultar histórico.</p>
+            </div>
+
+            <div>
+                <a href="index.html">Área do aluno</a>
+                <button class="secondary" onclick="logout()">Sair</button>
+            </div>
+        </div>
+
+        <div id="admin-msg"></div>
+
+        <div class="card">
+            <h2>Cadastros de alunos</h2>
+            <div id="lista-alunos"></div>
+        </div>
+
+        <div class="card">
+            <h2>Criar opções de grupos</h2>
+            <p class="small">
+                Se você informar letras A,B,C,D, o sistema criará uma opção para cada letra.
+            </p>
+
+            <label for="class_code">Série-turma</label>
+            <input type="text" id="class_code" placeholder="Exemplo: 2EMC">
+
+            <label for="subject">Disciplina</label>
+            <input type="text" id="subject" placeholder="Exemplo: FISICA">
+
+            <label for="theme">Tema</label>
+            <input type="text" id="theme" placeholder="Exemplo: SEMINARIO">
+
+            <label for="letters">Letras dos grupos</label>
+            <input type="text" id="letters" placeholder="Exemplo: A,B,C,D,E,F">
+
+            <label for="max_members">Tamanho maior dos grupos</label>
+            <input type="number" id="max_members" min="2" max="20" value="6">
+
+            <label for="full_capacity_count">Quantos grupos terão esse tamanho maior?</label>
+            <input type="number" id="full_capacity_count" min="0" value="2">
+
+            <p class="small">
+                Exemplo: se as letras forem A,B,C,D,E,F, tamanho maior 6 e quantidade 2,
+                então A e B terão 6 alunos; C, D, E e F terão 5 alunos.
+            </p>
+
+            <button onclick="criarOpcoesGrupo()">Criar opções</button>
+
+            <div id="msg-opcoes"></div>
+        </div>
+
+        <div class="card">
+            <h2>Opções já cadastradas</h2>
+            <div id="lista-opcoes"></div>
+        </div>
+
+        <div class="card">
+            <h2>Histórico</h2>
+            <div id="lista-historico"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase-config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/admin.js"></script>
+</body>
+</html>

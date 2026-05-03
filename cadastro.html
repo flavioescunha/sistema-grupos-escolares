@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Cadastro - Sistema de Grupos</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>Cadastro do aluno</h1>
+            <p>Preencha seus dados. O acesso só será liberado após aprovação do professor.</p>
+
+            <form id="form-cadastro" onsubmit="cadastrarUsuario(event)">
+                <label for="first_name">Primeiro nome</label>
+                <input type="text" id="first_name" required>
+
+                <label for="last_name">Último sobrenome</label>
+                <input type="text" id="last_name" required>
+
+                <label for="call_number">Número de chamada</label>
+                <input type="number" id="call_number" min="1" required>
+
+                <label for="class_code">Série-turma</label>
+                <input type="text" id="class_code" placeholder="Exemplo: 2EMC" required>
+
+                <label for="email">E-mail</label>
+                <input type="email" id="email" required>
+
+                <label for="password">Senha</label>
+                <input type="password" id="password" minlength="6" required>
+
+                <button type="submit">Criar cadastro</button>
+            </form>
+
+            <p id="msg"></p>
+
+            <p>
+                Já tem conta?
+                <a href="login.html">Entrar</a>
+            </p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase-config.js"></script>
+    <script src="js/auth.js"></script>
+</body>
+</html>

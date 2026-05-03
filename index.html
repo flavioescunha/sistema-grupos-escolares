@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Grupos - Sistema de Grupos</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body onload="carregarPaginaAluno()">
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>Meus grupos</h1>
+                <p id="dados-aluno" class="small"></p>
+            </div>
+
+            <div class="nav-links">
+                <a id="link-admin" href="admin.html" style="display:none;">Admin</a>
+                <button class="secondary" onclick="logout()">Sair</button>
+            </div>
+        </div>
+
+        <div id="msg-geral"></div>
+
+        <div class="grid">
+            <div class="card">
+                <h2>Criar novo grupo</h2>
+
+                <label for="select-option">Opção liberada pelo professor</label>
+                <select id="select-option"></select>
+
+                <button onclick="criarGrupo()">Criar grupo</button>
+
+                <div id="msg-criar"></div>
+            </div>
+
+            <div class="card">
+                <h2>Resumo</h2>
+                <div id="resumo-aluno"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Grupos da minha turma</h2>
+            <div id="lista-grupos"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase-config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/grupos.js"></script>
+</body>
+</html>
