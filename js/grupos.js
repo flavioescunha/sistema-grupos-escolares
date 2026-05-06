@@ -29,6 +29,7 @@ async function carregarPaginaAluno() {
 
     if (alunoAtual.is_admin) {
         document.getElementById("link-admin").style.display = "inline";
+        document.getElementById("titulo-grupos").textContent = "Todos os grupos formados";
     }
 
     await carregarDados();
@@ -49,14 +50,20 @@ async function carregarDados() {
 }
 
 async function carregarOpcoesAluno() {
-    const { data, error } = await supabaseClient
+    let query = supabaseClient
         .from("group_options")
         .select("*")
         .eq("active", true)
-        .eq("class_code", alunoAtual.class_code)
+        .order("class_code")
         .order("subject")
         .order("theme")
         .order("group_letter");
+
+    if (!alunoAtual.is_admin) {
+        query = query.eq("class_code", alunoAtual.class_code);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
         mostrarErro("msg-geral", error.message);
@@ -67,12 +74,18 @@ async function carregarOpcoesAluno() {
 }
 
 async function carregarGrupos() {
-    const { data, error } = await supabaseClient
+    let query = supabaseClient
         .from("groups")
         .select("*")
         .eq("active", true)
-        .eq("class_code", alunoAtual.class_code)
+        .order("class_code")
         .order("name");
+
+    if (!alunoAtual.is_admin) {
+        query = query.eq("class_code", alunoAtual.class_code);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
         mostrarErro("msg-geral", error.message);
@@ -83,11 +96,16 @@ async function carregarGrupos() {
 }
 
 async function carregarMembros() {
-    const { data, error } = await supabaseClient
+    let query = supabaseClient
         .from("group_members")
         .select("*")
-        .eq("active", true)
-        .eq("class_code", alunoAtual.class_code);
+        .eq("active", true);
+
+    if (!alunoAtual.is_admin) {
+        query = query.eq("class_code", alunoAtual.class_code);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
         mostrarErro("msg-geral", error.message);
@@ -98,12 +116,18 @@ async function carregarMembros() {
 }
 
 async function carregarPerfis() {
-    const { data, error } = await supabaseClient
+    let query = supabaseClient
         .from("profiles")
         .select("id, first_name, last_name, call_number, class_code, status")
         .eq("status", "aprovado")
-        .eq("class_code", alunoAtual.class_code)
+        .order("class_code")
         .order("call_number");
+
+    if (!alunoAtual.is_admin) {
+        query = query.eq("class_code", alunoAtual.class_code);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
         mostrarErro("msg-geral", error.message);
@@ -112,6 +136,7 @@ async function carregarPerfis() {
 
     perfisCache = data || [];
 }
+
 
 async function carregarPedidos() {
     const { data, error } = await supabaseClient
@@ -158,16 +183,16 @@ async function carregarRemoveRequests() {
 function renderizarOpcoes() {
     const select = document.getElementById("select-option");
 
-    const opcoesDaTurma = opcoesCache.filter(
-        op => op.class_code === alunoAtual.class_code
-    );
+    const opcoesVisiveis = alunoAtual.is_admin
+        ? opcoesCache
+        : opcoesCache.filter(op => op.class_code === alunoAtual.class_code);
 
-    if (opcoesDaTurma.length === 0) {
+    if (opcoesVisiveis.length === 0) {
         select.innerHTML = `<option value="">Nenhuma opção liberada para sua turma</option>`;
         return;
     }
 
-    select.innerHTML = opcoesDaTurma.map(op => {
+    select.innerHTML = opcoesVisiveis.map(op => {
         const nome = `${op.class_code} ${op.subject} ${op.theme} ${op.group_letter} - máx. ${op.max_members}`;
         return `<option value="${op.id}">${nome}</option>`;
     }).join("");
@@ -194,18 +219,18 @@ function renderizarResumo() {
 function renderizarGrupos() {
     const div = document.getElementById("lista-grupos");
 
-    const gruposDaTurma = gruposCache.filter(
-        grupo => grupo.class_code === alunoAtual.class_code
-    );
+    const gruposVisiveis = alunoAtual.is_admin
+        ? gruposCache
+        : gruposCache.filter(grupo => grupo.class_code === alunoAtual.class_code);
 
-    if (gruposDaTurma.length === 0) {
+    if (gruposVisiveis.length === 0) {
         div.innerHTML = `<p>Nenhum grupo criado ainda.</p>`;
         return;
     }
 
     let html = "";
 
-    gruposDaTurma.forEach(grupo => {
+    gruposVisiveis.forEach(grupo => {
         const membrosGrupo = membrosCache.filter(m => m.group_id === grupo.id);
         const souMembro = membrosGrupo.some(m => m.user_id === alunoAtual.id);
         const lotado = membrosGrupo.length >= grupo.max_members;
@@ -214,14 +239,14 @@ function renderizarGrupos() {
         const membrosHtml = membrosGrupo.map(m => {
             const p = perfisCache.find(x => x.id === m.user_id);
             if (!p) return `<span class="badge">Aluno</span>`;
-            return `<span class="badge blue">${p.call_number} - ${p.first_name} ${p.last_name}</span>`;
+            return `<span class="badge blue">${p.class_code} ${p.call_number} - ${p.first_name} ${p.last_name}</span>`;
         }).join("");
 
         html += `
             <div class="group-card ${souMembro ? "mine" : ""}">
                 <h3>${grupo.name}</h3>
                 <p class="small">
-                    ${membrosGrupo.length}/${grupo.max_members} membros
+                    Turma: ${grupo.class_code} | ${membrosGrupo.length}/${grupo.max_members} membros
                 </p>
 
                 <p>${membrosHtml}</p>
@@ -235,6 +260,10 @@ function renderizarGrupos() {
 
             html += renderizarPedidosDoGrupo(grupo, pedidosGrupo);
             html += renderizarExclusaoDoGrupo(grupo, membrosGrupo);
+        } else if (alunoAtual.is_admin) {
+            html += `
+                <p><span class="badge yellow">Visualização administrativa</span></p>
+            `;
         } else {
             const jaPediu = pedidosGrupo.some(p => p.requester_id === alunoAtual.id);
 
