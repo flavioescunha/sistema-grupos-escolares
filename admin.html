@@ -33,7 +33,15 @@
             </p>
 
             <label for="class_code">Série-turma</label>
-            <input type="text" id="class_code" placeholder="Exemplo: 2EMC">
+            <input
+                type="text"
+                id="class_code"
+                placeholder="Exemplo: 2EMC"
+                pattern="^[1-3]EM[A-C]$"
+                title="Use o formato 1EMA, 1EMB, 1EMC, 2EMA... até 3EMC"
+                maxlength="4"
+            >
+
 
             <label for="subject">Disciplina</label>
             <input type="text" id="subject" placeholder="Exemplo: FISICA">

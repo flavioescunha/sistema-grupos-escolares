@@ -52,6 +52,7 @@ async function carregarOpcoesAluno() {
         .from("group_options")
         .select("*")
         .eq("active", true)
+        .eq("class_code", alunoAtual.class_code)
         .order("subject")
         .order("theme")
         .order("group_letter");
@@ -65,10 +66,11 @@ async function carregarOpcoesAluno() {
 }
 
 async function carregarGrupos() {
-    const { data, error } = await supabaseClient
+    const await supabaseClient
         .from("groups")
         .select("*")
         .eq("active", true)
+        .eq("class_code", alunoAtual.class_code)
         .order("name");
 
     if (error) {
@@ -83,7 +85,8 @@ async function carregarMembros() {
     const { data, error } = await supabaseClient
         .from("group_members")
         .select("*")
-        .eq("active", true);
+        .eq("active", true)
+        .eq("class_code", alunoAtual.class_code);
 
     if (error) {
         mostrarErro("msg-geral", error.message);
@@ -93,12 +96,12 @@ async function carregarMembros() {
     membrosCache = data || [];
 }
 
-async function carregarPerfis() {
+async function() {
     const { data, error } = await supabaseClient
         .from("profiles")
         .select("id, first_name, last_name, call_number, class_code, status")
         .eq("status", "aprovado")
-        .order("class_code")
+        .eq("class_code", alunoAtual.class_code)
         .order("call_number");
 
     if (error) {
@@ -154,12 +157,16 @@ async function carregarRemoveRequests() {
 function renderizarOpcoes() {
     const select = document.getElementById("select-option");
 
-    if (opcoesCache.length === 0) {
+    const opcoesDaTurma = opcoesCache.filter(
+        op => op.class_code === alunoAtual.class_code
+    );
+
+    if (opcoesDaTurma.length === 0) {
         select.innerHTML = `<option value="">Nenhuma opção liberada para sua turma</option>`;
         return;
     }
 
-    select.innerHTML = opcoesCache.map(op => {
+    select.innerHTML = opcoesDaTurma.map(op => {
         const nome = `${op.class_code} ${op.subject} ${op.theme} ${op.group_letter} - máx. ${op.max_members}`;
         return `<option value="${op.id}">${nome}</option>`;
     }).join("");
@@ -184,16 +191,20 @@ function renderizarResumo() {
 }
 
 function renderizarGrupos() {
-    const div = document.getElementById("lista-grupos");
+");
 
-    if (gruposCache.length === 0) {
+    const gruposDaTurma = gruposCache.filter(
+        grupo => grupo.class_code === alunoAtual.class_code
+    );
+
+    if (gruposDaTurma.length === 0) {
         div.innerHTML = `<p>Nenhum grupo criado ainda.</p>`;
         return;
     }
 
     let html = "";
 
-    gruposCache.forEach(grupo => {
+    gruposDaTurma.forEach(grupo => {
         const membrosGrupo = membrosCache.filter(m => m.group_id === grupo.id);
         const souMembro = membrosGrupo.some(m => m.user_id === alunoAtual.id);
         const lotado = membrosGrupo.length >= grupo.max_members;

@@ -100,6 +100,17 @@ async function cadastrarUsuario(event) {
     const msg = document.getElementById("msg");
 
     msg.textContent = "Criando cadastro...";
+    msg.className = "";
+
+    // Formato XEMY:
+    // 1EMA, 2EMB, 3EMC, 10EMA, etc.
+    const turmaRegex = /^\d+EM[A-C]$/;
+
+    if (!turmaRegex.test(classCode)) {
+        msg.textContent = "Turma inválida. Use o formato XEMY, por exemplo: 1EMA, 2EMB, 3EMC.";
+        msg.className = "error";
+        return;
+    }
 
     const { data, error } = await supabaseClient.auth.signUp({
         email,
