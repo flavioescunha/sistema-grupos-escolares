@@ -4,6 +4,42 @@
     <meta charset="UTF-8">
     <title>Admin - Sistema de Grupos</title>
     <link rel="stylesheet" href="css/style.css">
+
+    <style>
+        .frame-lista {
+            max-height: 360px;
+            overflow: auto;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 8px;
+            background: #ffffff;
+        }
+
+        .frame-lista table {
+            margin-top: 0;
+        }
+
+        .frame-lista thead th {
+            position: sticky;
+            top: 0;
+            background: #ffffff;
+            z-index: 1;
+        }
+
+        .acoes-linha {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        pre.json-cell {
+            margin: 0;
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-family: Consolas, Monaco, monospace;
+            font-size: 12px;
+        }
+    </style>
 </head>
 <body onload="carregarAdmin()">
     <div class="container">
@@ -12,7 +48,6 @@
                 <h1>Painel do administrador</h1>
                 <p class="small">Aprovar alunos, configurar opções de grupo e consultar histórico.</p>
             </div>
-
             <div>
                 <a href="index.html">Área do aluno</a>
                 <button class="secondary" onclick="logout()">Sair</button>
@@ -23,7 +58,9 @@
 
         <div class="card">
             <h2>Cadastros de alunos</h2>
-            <div id="lista-alunos"></div>
+            <div class="frame-lista">
+                <div id="lista-alunos"></div>
+            </div>
         </div>
 
         <div class="card">
@@ -41,7 +78,6 @@
                 title="Use o formato 1EMA, 1EMB, 1EMC, 2EMA... até 3EMC"
                 maxlength="4"
             >
-
 
             <label for="subject">Disciplina</label>
             <input type="text" id="subject" placeholder="Exemplo: FISICA">
@@ -70,11 +106,14 @@
 
         <div class="card">
             <h2>Opções já cadastradas</h2>
-            <div id="lista-opcoes"></div>
+            <div class="frame-lista">
+                <div id="lista-opcoes"></div>
+            </div>
         </div>
 
         <div class="card">
             <h2>Filtro por turma</h2>
+
             <label for="filtro-turma-admin">Turma</label>
             <select id="filtro-turma-admin" onchange="aplicarFiltroTurmaAdmin()">
                 <option value="">Todas as turmas</option>
@@ -93,7 +132,9 @@
                 Aqui o administrador pode desativar um grupo. O grupo deixa de aparecer para os alunos,
                 os membros são removidos do grupo ativo e os pedidos pendentes são cancelados.
             </p>
-            <div id="lista-grupos-admin"></div>
+            <div class="frame-lista">
+                <div id="lista-grupos-admin"></div>
+            </div>
         </div>
 
         <div class="card">
@@ -101,12 +142,16 @@
             <p class="small">
                 Use esta opção quando o professor precisar aceitar manualmente um aluno em um grupo.
             </p>
-            <div id="lista-pedidos-admin"></div>
+            <div class="frame-lista">
+                <div id="lista-pedidos-admin"></div>
+            </div>
         </div>
 
         <div class="card">
             <h2>Histórico</h2>
-            <div id="lista-historico"></div>
+            <div class="frame-lista">
+                <div id="lista-historico"></div>
+            </div>
         </div>
     </div>
 

@@ -30,14 +30,30 @@ async function carregarAlunos() {
 
     const { data, error } = await supabaseClient
         .from("profiles")
-        .select("*")
-        .order("class_code")
-        .order("call_number");
+        .select("*");
 
     if (error) {
         div.innerHTML = `<p class="error">${error.message}</p>`;
         return;
     }
+
+    const ordemStatus = {
+        pendente: 0,
+        aprovado: 1,
+        bloqueado: 2,
+        rejeitado: 3
+    };
+
+    const alunosOrdenados = (data || []).slice().sort((a, b) => {
+        const oa = ordemStatus[a.status] ?? 99;
+        const ob = ordemStatus[b.status] ?? 99;
+
+        if (oa !== ob) return oa - ob;
+        if ((a.class_code || "") !== (b.class_code || "")) {
+            return (a.class_code || "").localeCompare(b.class_code || "");
+        }
+        return (a.call_number || 0) - (b.call_number || 0);
+    });
 
     let html = `
         <table>
@@ -55,18 +71,14 @@ async function carregarAlunos() {
             <tbody>
     `;
 
-    data.forEach(aluno => {
+    alunosOrdenados.forEach(aluno => {
         html += `
             <tr>
-                <td>${aluno.class_code}</td>
-                <td>${aluno.call_number}</td>
-                <td>${aluno.first_name} ${aluno.last_name}</td>
-                <td>${aluno.email}</td>
-                <td>
-                    <span class="badge ${aluno.status === "aprovado" ? "green" : "yellow"}">
-                        ${aluno.status}
-                    </span>
-                </td>
+                <td>${aluno.class_code || ""}</td>
+                <td>${aluno.call_number ?? ""}</td>
+                <td>${aluno.first_name || ""} ${aluno.last_name || ""}</td>
+                <td>${aluno.email || ""}</td>
+                <td>${aluno.status || ""}</td>
                 <td>${aluno.is_admin ? "Sim" : "Não"}</td>
                 <td>
                     <button class="success" onclick="alterarStatusAluno('${aluno.id}', 'aprovado')">Aprovar</button>
@@ -97,6 +109,8 @@ async function alterarStatusAluno(id, status) {
     }
 
     await carregarAlunos();
+    await carregarPerfisAdmin();
+    popularFiltroTurmasAdmin();
 }
 
 async function criarOpcoesGrupo() {
@@ -211,7 +225,7 @@ async function carregarOpcoes() {
             <tbody>
     `;
 
-    data.forEach(op => {
+    (data || []).forEach(op => {
         html += `
             <tr>
                 <td>${op.class_code}</td>
@@ -219,11 +233,7 @@ async function carregarOpcoes() {
                 <td>${op.theme}</td>
                 <td>${op.group_letter}</td>
                 <td>${op.max_members}</td>
-                <td>
-                    <span class="badge ${op.active ? "green" : "red"}">
-                        ${op.active ? "Sim" : "Não"}
-                    </span>
-                </td>
+                <td>${op.active ? "Sim" : "Não"}</td>
                 <td>
                     <button class="secondary" onclick="alternarOpcao('${op.id}', ${!op.active})">
                         ${op.active ? "Desativar" : "Ativar"}
@@ -283,7 +293,7 @@ async function carregarHistorico() {
             <tbody>
     `;
 
-    data.forEach(item => {
+    (data || []).forEach(item => {
         html += `
             <tr>
                 <td>${new Date(item.created_at).toLocaleString("pt-BR")}</td>
@@ -412,7 +422,6 @@ function renderizarGruposAdmin() {
         opcoesFiltradas = opcoesAdminCache.filter(opcao => opcao.class_code === filtroTurma);
     }
 
-    // fallback: se não houver opções, mas houver grupos reais antigos, mostra mesmo assim
     const gruposOrfaos = gruposAdminCache.filter(grupo => {
         const temOpcaoCorrespondente = opcoesAdminCache.some(opcao =>
             grupo.option_id === opcao.id ||
@@ -471,20 +480,20 @@ function renderizarGruposAdmin() {
             : 0;
 
         const statusGrupo = !grupoReal
-            ? `<span class="badge yellow">Ainda não criado</span>`
+            ? `Ainda não criado`
             : grupoReal.active
-                ? `<span class="badge green">Criado</span>`
-                : `<span class="badge red">Inativo</span>`;
+                ? `Criado`
+                : `Inativo`;
 
         const criadoEm = grupoReal
             ? new Date(grupoReal.created_at).toLocaleString("pt-BR")
             : "-";
 
         const acoes = !grupoReal
-            ? `<span class="small">Sem grupo criado</span>`
+            ? `Sem grupo criado`
             : grupoReal.active
                 ? `<button class="danger" onclick="desativarGrupoAdmin('${grupoReal.id}', '${escapeHtml(grupoReal.name)}')">Excluir/desativar</button>`
-                : `<span class="small">Grupo inativo</span>`;
+                : `Grupo inativo`;
 
         html += `
             <tr>
@@ -493,11 +502,7 @@ function renderizarGruposAdmin() {
                 <td>${opcao.theme}</td>
                 <td>${opcao.group_letter}</td>
                 <td>${opcao.max_members}</td>
-                <td>
-                    <span class="badge ${opcao.active ? "green" : "red"}">
-                        ${opcao.active ? "Sim" : "Não"}
-                    </span>
-                </td>
+                <td>${opcao.active ? "Sim" : "Não"}</td>
                 <td>${statusGrupo}</td>
                 <td>${qtdMembros}/${opcao.max_members}</td>
                 <td>${criadoEm}</td>
@@ -506,7 +511,6 @@ function renderizarGruposAdmin() {
         `;
     });
 
-    // mostra também grupos reais sem opção correspondente
     gruposOrfaos.forEach(grupo => {
         const qtdMembros = membrosAdminCache.filter(m => m.group_id === grupo.id && m.active).length;
 
@@ -517,19 +521,15 @@ function renderizarGruposAdmin() {
                 <td>${grupo.theme}</td>
                 <td>${grupo.group_letter}</td>
                 <td>${grupo.max_members}</td>
-                <td><span class="badge red">Sem configuração</span></td>
-                <td>
-                    <span class="badge ${grupo.active ? "green" : "red"}">
-                        ${grupo.active ? "Criado" : "Inativo"}
-                    </span>
-                </td>
+                <td>Sem configuração</td>
+                <td>${grupo.active ? "Criado" : "Inativo"}</td>
                 <td>${qtdMembros}/${grupo.max_members}</td>
                 <td>${new Date(grupo.created_at).toLocaleString("pt-BR")}</td>
                 <td>
                     ${
                         grupo.active
                             ? `<button class="danger" onclick="desativarGrupoAdmin('${grupo.id}', '${escapeHtml(grupo.name)}')">Excluir/desativar</button>`
-                            : `<span class="small">Grupo inativo</span>`
+                            : `Grupo inativo`
                     }
                 </td>
             </tr>
@@ -643,9 +643,7 @@ function renderizarPedidosAdmin() {
 }
 
 async function desativarGrupoAdmin(groupId, groupName) {
-    const motivo = prompt(
-        `Informe o motivo para excluir/desativar o grupo:\n\n${groupName}`
-    );
+    const motivo = prompt(`Informe o motivo para excluir/desativar o grupo:\n\n${groupName}`);
 
     if (motivo === null) {
         return;
@@ -678,9 +676,7 @@ async function desativarGrupoAdmin(groupId, groupName) {
 }
 
 async function aprovarPedidoEntradaAdmin(requestId, nomeAluno, nomeGrupo) {
-    const motivo = prompt(
-        `Informe o motivo para aceitar este aluno pelo admin:\n\nAluno: ${nomeAluno}\nGrupo: ${nomeGrupo}`
-    );
+    const motivo = prompt(`Informe o motivo para aceitar este aluno pelo admin:\n\nAluno: ${nomeAluno}\nGrupo: ${nomeGrupo}`);
 
     if (motivo === null) {
         return;
@@ -781,15 +777,7 @@ async function baixarPlanilhaGrupos() {
         return;
     }
 
-    const cabecalho = [
-        "Turma",
-        "Numero",
-        "Nome",
-        "Sobrenome",
-        "Disciplina",
-        "Tema",
-        "Grupo"
-    ];
+    const cabecalho = ["Turma", "Numero", "Nome", "Sobrenome", "Disciplina", "Tema", "Grupo"];
 
     const csv = [
         cabecalho.join(";"),
