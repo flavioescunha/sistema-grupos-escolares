@@ -1,4 +1,5 @@
-let alunoAtual = null;let gruposCache = [];
+let alunoAtual = null;
+let gruposCache = [];
 let membrosCache = [];
 let perfisCache = [];
 let pedidosCache = [];
@@ -66,7 +67,7 @@ async function carregarOpcoesAluno() {
 }
 
 async function carregarGrupos() {
-    const await supabaseClient
+    const { data, error } = await supabaseClient
         .from("groups")
         .select("*")
         .eq("active", true)
@@ -96,7 +97,7 @@ async function carregarMembros() {
     membrosCache = data || [];
 }
 
-async function() {
+async function carregarPerfis() {
     const { data, error } = await supabaseClient
         .from("profiles")
         .select("id, first_name, last_name, call_number, class_code, status")
@@ -191,7 +192,7 @@ function renderizarResumo() {
 }
 
 function renderizarGrupos() {
-");
+    const div = document.getElementById("lista-grupos");
 
     const gruposDaTurma = gruposCache.filter(
         grupo => grupo.class_code === alunoAtual.class_code
@@ -279,7 +280,6 @@ function renderizarPedidosDoGrupo(grupo, pedidosGrupo) {
     });
 
     html += `</div>`;
-
     return html;
 }
 
