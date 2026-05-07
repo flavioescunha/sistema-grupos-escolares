@@ -84,6 +84,7 @@ async function carregarAlunos() {
                     <button class="success" onclick="alterarStatusAluno('${aluno.id}', 'aprovado')">Aprovar</button>
                     <button class="warning" onclick="alterarStatusAluno('${aluno.id}', 'pendente')">Pendente</button>
                     <button class="danger" onclick="alterarStatusAluno('${aluno.id}', 'bloqueado')">Bloquear</button>
+                    <button class="secondary" onclick="resetarSenhaAluno('${aluno.id}', '${aluno.email || ""}')">Resetar</button>
                 </td>
             </tr>
         `;
@@ -826,4 +827,39 @@ function escapeHtml(text) {
         .replaceAll(">", "&gt;")
         .replaceAll('"', "&quot;")
         .replaceAll("'", "&#039;");
+}
+
+async function resetarSenhaAluno(userId, email) {
+    const confirmado = confirm(
+        `Resetar a senha do aluno ${email} para "senhatemp"?`
+    );
+
+    if (!confirmado) {
+        return;
+    }
+
+    const {
+        data: { session }
+    } = await supabaseClient.auth.getSession();
+
+    if (!session) {
+        alert("Sessão não encontrada.");
+        return;
+    }
+
+    const { data, error } = await supabaseClient.functions.invoke("reset-student-pass", {
+        body: {
+            target_user_id: userId
+        },
+        headers: {
+            Authorization: `Bearer ${session.access_token}`
+        }
+    });
+
+    if (error) {
+        alert("Erro ao resetar senha: " + error.message);
+        return;
+    }
+
+    alert(`Senha resetada com sucesso para o aluno ${email}.\nSenha temporária: senhatemp`);
 }

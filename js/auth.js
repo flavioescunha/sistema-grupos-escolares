@@ -81,6 +81,11 @@ async function loginUsuario(event) {
         return;
     }
 
+    if (profile.must_change_password) {
+        window.location.href = "change-password.html";
+        return;
+    }
+
     if (profile.is_admin) {
         window.location.href = "admin.html";
     } else {
@@ -135,4 +140,55 @@ async function cadastrarUsuario(event) {
     msg.className = "success-text";
 
     document.getElementById("form-cadastro").reset();
+}
+async function trocarSenhaTemporaria(event) {
+    event.preventDefault();
+
+    const novaSenha = document.getElementById("new_password").value;
+    const confirmarSenha = document.getElementById("confirm_password").value;
+    const msg = document.getElementById("msg");
+
+    msg.textContent = "";
+    msg.className = "";
+
+    if (novaSenha.length < 6) {
+        msg.textContent = "A nova senha deve ter pelo menos 6 caracteres.";
+        msg.className = "error";
+        return;
+    }
+
+    if (novaSenha !== confirmarSenha) {
+        msg.textContent = "As senhas não coincidem.";
+        msg.className = "error";
+        return;
+    }
+
+    const { error: authError } = await supabaseClient.auth.updateUser({
+        password: novaSenha
+    });
+
+    if (authError) {
+        msg.textContent = "Erro ao atualizar senha: " + authError.message;
+        msg.className = "error";
+        return;
+    }
+
+    const { error: clearError } = await supabaseClient.rpc("clear_must_change_password");
+
+    if (clearError) {
+        msg.textContent = "Senha alterada, mas houve erro ao finalizar a rotina: " + clearError.message;
+        msg.className = "error";
+        return;
+    }
+
+    msg.textContent = "Senha alterada com sucesso.";
+    msg.className = "success-text";
+
+    const profile = await getCurrentProfile();
+
+    if (profile?.is_admin) {
+        window.location.href = "admin.html";
+    } else {
+        window.location.href = "index.html";
+    }
 }
